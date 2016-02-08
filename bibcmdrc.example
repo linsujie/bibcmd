@@ -1,0 +1,39 @@
+#/bin/env ruby
+
+BIBUTILS = File.expand_path('~/.scripts/cmdbib_utils/bibus_utils.rb')
+CMDUTILS = File.expand_path('~/.scripts/cmdbib_utils/cmdbib_utils.rb')
+
+USER_NAME = 'linsj'
+DATA_FILE = '~/Public/Dropbox/.bibus/Daily.db'
+REF_DIR = '~/Public/Dropbox/Documents/Reference'
+BACKUP_BIB = '~/.temp.bib'
+
+READER = 'mupdf' # could be 'mupdf' if you like
+ASSREADER = 'gvfs-open'
+ANCESTOR = 3
+
+# initialize the color codes, -1 is the default color (determined by your terminal setting)
+def colorinit
+  init_pair(1, COLOR_RED, -1)
+  init_pair(2, COLOR_GREEN, -1)
+  init_pair(3, COLOR_YELLOW, -1)
+  init_pair(4, COLOR_BLUE, -1)
+  init_pair(5, COLOR_MAGENTA, -1)
+  init_pair(6, COLOR_CYAN, -1)
+  init_pair(7, COLOR_WHITE, -1)
+  init_pair(8, -1, -1)
+end
+
+# Setting the colors for the panel
+COLORS = { list: [7, 5, 8], #The main list, the identifier, keys and title cols in the c state
+
+           title: 8, author: 2, keyname: 5, journal: 6, volume: 6, pages: 6, eprint: 3, bibnote: 8,
+           # The main information panel
+
+           menu: 6, #The menu listing the keys
+
+           output: 6, # The output state panel
+           message: 8, # The message panel
+
+           note_key: 2, note_content: 8, note_frame: 6, note_splitor: 6, #Inside the note state
+}

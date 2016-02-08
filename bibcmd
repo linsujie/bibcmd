@@ -1,0 +1,31 @@
+#!/usr/bin/env ruby
+# encoding: utf-8
+
+load File.expand_path('~/.bibcmdrc')
+require BIBUTILS
+require CMDUTILS
+require 'curses'
+include Curses
+
+READER ||= 'gvfs-open'
+ASSREADER ||= READER
+BACKUP_BIB ||= '~/.temp.bib'
+
+bib = Bibus.new({ username: USER_NAME, datafile: DATA_FILE, reader: READER,
+                  assreader: ASSREADER, refdir: REF_DIR, ancestor: ANCESTOR })
+
+begin
+init_screen
+cbreak
+noecho
+curs_set(0)
+start_color
+use_default_colors
+colorinit
+
+cmd = CmdBib.new(lines, cols, bib, BACKUP_BIB)
+cmd.deal
+
+ensure
+close_screen
+end
