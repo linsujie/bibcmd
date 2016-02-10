@@ -21,16 +21,19 @@ class FoldList
 
   def fold_m(id = 0)
     @tree.map!(:ostate) { false }
+    @tree.id
   end
 
   def fold_o(id = 0)
     @tree.map!(:ostate) { true }
+    id
   end
 
   def fold_a(id)
     object = @tree.find(:id, id)
     object = @tree.find(:id, object.parent) if object.children.empty?
     object.ostate = !object.ostate
+    object.id
   end
 
   def to_a

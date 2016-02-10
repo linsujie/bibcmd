@@ -93,18 +93,14 @@ module NoteItfBase
   def change_item(with_cont = false, act = :insert)
     curs_set(1)
 
-    ins = insmode(with_cont ? @note.item : '')
+    ins = Insmode.new(with_cont ? @note.item : '', @opt[:height],
+                      [@opt[:scheight] - @opt[:height] - 1, @opt[:scwidth]])
 
     ins.deal
     @note.send(act, ins.file.string)
 
     curs_set(0)
     pagerefresh
-  end
-
-  def insmode(string)
-    Insmode.new(string, @opt[:height],
-                [@opt[:scheight] - @opt[:height] - 1, @opt[:scwidth]])
   end
 
   [[:insert, false], [:append, false], [:mod, true]].each do |func, cont|
@@ -216,29 +212,33 @@ class NoteItf
   end
 
   def addstring(string, pair = -1, bold = false)
-    attrset(A_BOLD) if bold
-    attron(color_pair(pair))
+    @head_window.attrset(A_BOLD) if bold
+    @head_window.attron(color_pair(pair))
 
-    addstr(string)
+    @head_window.addstr(string)
 
-    attroff(A_BOLD) if bold
-    attroff(color_pair(pair))
+    @head_window.attroff(A_BOLD) if bold
+    @head_window.attroff(color_pair(pair))
   end
 
   def showline(key, content)
     addstring("#{key}: ", COLORS[:note_key], true)
     addstring("#{content}\n", COLORS[:note_key])
-    "#{key}: #{content}\n"
   end
 
   def showhead
     setpos(0, 0)
     headstr = %w(title author identifier).map(&:to_sym)
-              .reduce('') { |a, e| a + showline(e.upcase, @opt[e]) }
-    addstring('^' * cols, COLORS[:note_splitor], true)
-    refresh
+              .reduce('') { |a, e| a + "#{e}: #{@opt[e]}\n" }
+    headheight = countline(headstr)
+    @head_window = Window.new(headheight, @opt[:scwidth], 0, 0)
 
-    countline(headstr)
+    %w(title author identifier).map(&:to_sym)
+      .each { |e| showline(e.upcase, @opt[e]) }
+    addstring('^' * cols, COLORS[:note_splitor], true)
+    @head_window.refresh
+
+    headheight
   end
 
   def countline(headstr)

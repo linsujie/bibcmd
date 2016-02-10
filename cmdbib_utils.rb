@@ -142,7 +142,7 @@ module CmdBibControl
 
   def refreshpanel(listref = true)
     listrefresh if listref
-    clear
+    #clear
     refresh
     showc
     @list.mrefresh
@@ -174,7 +174,7 @@ module CmdBibControl
   NOTEKEY = %w(note title author identifier)
   def noting
     return if @list.current(-1) == ''
-    clear
+    #clear
 
     bib.storenote(@list.current(-1), getnotes)
     refreshpanel(false)

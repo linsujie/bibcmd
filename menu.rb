@@ -1,11 +1,13 @@
 #!/usr/bin/env ruby
 # encoding: utf-8
 
+require 'ncursesw'
 require_relative 'frame.rb'
 require_relative 'foldlist.rb'
 
 # The basic utils for menu
 module MenuUtils
+  include Ncurses
   attr_reader :curse, :scurse, :list
 
   public
@@ -43,7 +45,7 @@ module MenuUtils
     @win[col].freshframe
     (@scurse..@scurse + @contlen - 1).each { |ind| pitem(col, ind) }
 
-    @win[col].cont.refresh
+    #@win[col].cont.refresh
     frefresh(col)
   end
 
@@ -67,7 +69,7 @@ module MenuUtils
     @win[col].cont.attron(A_STANDOUT)
     pointstr(col, current(col), @curse - @scurse)
     @win[col].cont.attroff(A_STANDOUT)
-    @win[col].cont.refresh
+    @win[col].refresh
   end
 
   def listsize
@@ -129,7 +131,8 @@ class Menu
     curs_set(0)
 
     loop do
-      char = mrefresh.getch
+      mrefresh
+      char = getch
       deal(char, process)
       break if @qkey.include?(char)
     end
@@ -140,7 +143,8 @@ class Menu
     construct(xshift)
     @visible
       .each_with_index { |bool, ind| colrefresh(ind) if bool && @list[ind] }
-    @win[@opts[:mainmenu]].cont
+
+    #@win[@opts[:mainmenu]].cont
   end
 
   def to_a(col = @opts[:mainmenu])
@@ -179,7 +183,8 @@ class AdvMenu < Menu
     curs_set(0)
 
     loop do
-      @char = mrefresh.getch
+      mrefresh
+      @char = getch
       deal(@char, process)
       yield(self, @char.to_s) if block_given?
       break if @qkey.include?(@char)
@@ -204,7 +209,8 @@ class FoldMenu < AdvMenu
 
     @state = :normal
     loop do
-      @char = mrefresh.getch
+      mrefresh
+      @char = getch
       deal(@char, process)
       fold if @char == 'z'
 

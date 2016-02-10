@@ -1,57 +1,41 @@
 #!/usr/bin/env ruby
 # encoding: utf-8
 
+require 'ncursesw'
+
 # The window with frame
 class Framewin
+  include Ncurses
   attr_reader :cont
   attr_accessor :framewin
 
   public
 
   def initialize(height, width, lsft, csft, frame = false)
-    @frame = frame
-    @h = height - 1
-    @w = width - 1
+    @corners = [ACS_ULCORNER, ACS_URCORNER, ACS_LLCORNER, ACS_LRCORNER]
+    @frame = complete_frame(frame)
 
-    @framewin = Window.new(height + 2, width + 2, lsft, csft) if @frame
+    fheight, fwidth = @frame ? [height + 2, width + 2] : [height, width]
+    @framewin = WINDOW.new(fheight, fwidth, lsft, csft)
+    @framewin.border(*@frame) if @frame
 
     lsft, csft = lsft + 1, csft + 1 if @frame
-    @cont = Window.new(height, width, lsft, csft)
+    @cont = @framewin.subwin(height, width, lsft, csft)
   end
 
   def refresh(pos = false)
-    drawframe(pos) if @frame
+    @framewin.noutrefresh
     @cont.refresh
   end
 
-  def freshframe
-    @framewin.box(@frame[0], @frame[1])
-    @framewin.refresh
+  def box(frame)
+    @frame = complete_frame(frame)
+    @framewin.border(*@frame)
   end
 
   private
 
-  def drawframe(pos)
-    getbkg(pos)
-    freshframe
-
-    @cont.setpos(0, 0)
-    @cont.addstr(@bkgd)
-  end
-
-  def getbkg(pos)
-    @bkgd = ''
-    line, col = pos || [@h, @w]
-    areabf(line, col) { |ln, cl| @bkgd << inchar(ln, cl) }
-  end
-
-  def areabf(line, col)
-    (0..line - 1).each { |ln| (0..@w).each { |cl| yield(ln, cl) } }
-    (0..col).each { |cl| yield(line, cl) }
-  end
-
-  def inchar(line, col)
-    @cont.setpos(line, col)
-    @cont.inch
+  def complete_frame(frame)
+    frame && (frame.map(&:ord).map { |x| [x, x] }.flatten + @corners)
   end
 end

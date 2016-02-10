@@ -127,6 +127,8 @@ module InsmodeBase
 
   def winrefresh
     @window.cont.clear
+    (0..@winsize[1] - 1).to_a.product((0..@winsize[0] - 1).to_a)
+      .each { |x, y| showch(' ', x, y) }
     showstr(0)
   end
 
@@ -138,7 +140,7 @@ module InsmodeBase
   def move(direct)
     @file.move(direct)
     showch
-    @window.cont.refresh
+    @window.refresh
   end
 
   def showch(letter = @file.letter, x = @file.x, y = @file.y)
@@ -150,7 +152,7 @@ module InsmodeBase
 
   def showstr(bgn = @file.curse)
     @file.each(bgn) { |letter, x, y| showch(letter, x, y) }
-    @window.refresh([@file.y, @file.x - 1])
+    @window.refresh
     @window.cont.setpos(@file.y, @file.x)
   end
 end
