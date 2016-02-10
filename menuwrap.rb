@@ -35,9 +35,8 @@ class MenuWrap
                  mark: '',
                  qkey: ['q', 27], ukey: ['k', KEY_UP], dkey: ['j', KEY_DOWN],
                  ckey: [10], hkey: [KEY_HOME, 'gg'], ekey: [KEY_END, 'G'],
-                 accepted: [], panel: nil, current: 0
+                 accepted: [], panel: nil, default_win: nil, current: 0
   }
-  @@default_win = nil
 
   def initialize(opt)
     @opt = opt
@@ -46,6 +45,10 @@ class MenuWrap
     @opt[:colors] ||= @opt[:displays].map { 2 }
 
     @opt[:border] ||= [ACS_VLINE, ACS_HLINE].map(&:ord)
+
+    if !@opt[:panel] && @opt[:default_win]
+      @opt[:panel] = Panel::PANEL.new(@opt[:default_win])
+    end
 
     %w(qkey ukey dkey ckey hkey ekey accepted).each { |k| format_keymap(k) }
 
@@ -153,8 +156,7 @@ class MenuWrap
   end
 
   def free_main_window(window)
-    @@default_win ||= WINDOW.new(0, 0, 0, 0)
-    @opt[:panel].replace_panel(@@default_win)
+    @opt[:panel].replace_panel(@opt[:default_win])
 
     window.delwin
   end

@@ -7,13 +7,17 @@ require_relative 'foldlist'
 # A foldable Menu
 class FoldMenu
   attr_reader :menu
-  DFT_OPTION = { list: nil, ancestor: 1, ckey: [10] }
+  DFT_OPTION = { list: nil, ccolshift: 0, ancestor: 1, ckey: [10] }
 
   public
 
   def initialize(opt)
     @opt = opt
     DFT_OPTION.each_key { |k| @opt[k] = DFT_OPTION[k] unless @opt.key?(k) }
+
+    if !@opt[:panel] && @opt[:default_win]
+      @opt[:panel] = Panel::PANEL.new(@opt[:default_win])
+    end
 
     check_input
 
@@ -70,7 +74,11 @@ class FoldMenu
     mopt = @opt.clone
 
     mopt[:displays], mopt[:choices] = mopt[:list].to_a
+    display_width = mopt[:displays].map(&:size).max + 2
+    mopt[:wcolshift] = mopt[:ccolshift] - display_width / 2 if mopt[:ccolshift]
+
     mopt[:displays] = [mopt[:displays]]
+
     mopt[:ckey] << 'z'
 
     mopt
