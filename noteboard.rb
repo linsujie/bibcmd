@@ -2,16 +2,18 @@
 # encoding: utf-8
 
 require 'ncursesw'
+require_relative 'driverutils'
 
 # The blackboard for writing note
 class NoteBoard
   attr_reader :panel, :info
   include Ncurses
   include Ncurses::Form
+  include DriverUtils
 
   HEAD_TERM = %w(title author identifier).map(&:to_sym)
   TIPS = ' q: quit   [hjkl], x, dw, dd, $...: same as vim'
-  FIELD_EXT_LINE = 50
+  FIELD_EXT_LINE = 0
   STAT_LABEL = { normal: 'NORMAL', insert: 'INSERT' }
   DFT_OPTION = { infocolor: 2,
                  splitor: "\u2500".encode('utf-8'), splitorcolor: 6,
@@ -23,12 +25,14 @@ class NoteBoard
   def initialize(opt)
     @opt = opt
     DFT_OPTION.each_key { |k| @opt[k] = DFT_OPTION[k] unless @opt.key?(k) }
-    @@padkey_driver_map ||= { KEY_LEFT => REQ_LEFT_CHAR,
+    @padkey_driver_map = { KEY_LEFT => REQ_LEFT_CHAR,
                            KEY_RIGHT => REQ_RIGHT_CHAR,
                            KEY_UP => REQ_UP_CHAR,
                            KEY_DOWN => REQ_DOWN_CHAR,
                            KEY_HOME => REQ_BEG_FIELD,
                            KEY_END => REQ_END_FIELD }
+    @nor_driver_map = gen_nor_driver_map
+    @ins_driver_map = gen_ins_driver_map
 
     ini_window
   end
@@ -42,8 +46,13 @@ class NoteBoard
       ch = @window.getch
       cmd = [@precast, ch]
 
-      break if 'q'.ord == ch
-      :insert == @stat ? insert_deal(ch) : normal_deal(ch)
+      (@precast = ch) && next if @pre_key[@stat].include?(ch) && !@precast
+
+      act_result = :insert == @stat ? insert_deal(cmd) : normal_deal(cmd)
+      @field.set_field_buffer(0, @field.buffer(0).split(' ').join(' '))
+      break if act_result == :quit
+
+      @precast = nil
     end
     get_buffer
   end
@@ -51,18 +60,35 @@ class NoteBoard
   private
 
   def get_buffer
-
+    @form.driver(REQ_VALIDATION)
+    @field
   end
 
-  def insert_deal(ch)
-    set_stat(:normal)
+  def insert_deal(cmd)
+    set_stat(:normal) if [nil, 27] == cmd
+
+    driver_code = @ins_driver_map[cmd]
+    return @form.driver(driver_code) if driver_code
+
+    @form.driver(cmd[1])
   end
 
-  def normal_deal(ch)
-    @@nor_driver_map ||= gen_nor_driver_map
+  def normal_deal(cmd)
+    return :quit if [nil, 'q'.ord] == cmd
+    return set_stat(:insert) if [nil, 'i'.ord] == cmd
 
-    return set_stat(:insert) if 'i'.ord == ch
-    
+    stdscr.mvprintw(0, 100, cmd.to_s)
+    stdscr.refresh
+    driver_code = @nor_driver_map[cmd]
+    @form.driver(driver_code) if driver_code
+  end
+
+  def gen_ins_driver_map
+    { KEY_ENT => REQ_NEW_LINE,
+      KEY_BAC1 => REQ_DEL_PREV,
+      KEY_BAC2 => REQ_DEL_PREV
+    }.merge(@padkey_driver_map)
+    .map { |k, v| [format_cmd(k, :insert), v] }.to_h
   end
 
   def gen_nor_driver_map
@@ -78,10 +104,13 @@ class NoteBoard
       'G' => REQ_END_FIELD,
       'dd' => REQ_DEL_LINE,
       'dw' => REQ_DEL_WORD,
-      'd$' => REQ_DEL_EOL,
-      'dG' => REQ_DEL_EOF,
+      'd$' => REQ_CLR_EOL,
+      'dG' => REQ_CLR_EOF,
       'x' => REQ_DEL_CHAR,
-    }
+      KEY_ENT => REQ_NEXT_LINE,
+      KEY_BAC1 => REQ_PREV_CHAR,
+      KEY_BAC2 => REQ_PREV_CHAR,
+    }.merge(@padkey_driver_map).map { |k, v| [format_cmd(k), v] }.to_h
   end
 
   def prepares
@@ -95,6 +124,11 @@ class NoteBoard
   def prepare_form
     @field = FIELD.new(@opt[:height] - @headline - 3, @opt[:width] - 2,
                        0, 0, FIELD_EXT_LINE, 0)
+    @field.opts_off(O_BLANK)
+    @field.opts_off(O_STATIC)
+    #@field.opts_off
+    @field.fore = Ncurses.color_pair(@opt[:contentcolor])
+    @field.back = Ncurses.color_pair(@opt[:contentcolor])
     @field.set_field_buffer(0, @info[:item]) if @info[:item]
 
     @formwin = @window.derwin(@opt[:height] - @headline - 3,
@@ -172,6 +206,7 @@ class NoteBoard
   def ini_window
     @window = WINDOW.new(*%w(height width rowshift colshift)
                          .map { |k| @opt[k.to_sym] })
+    @window.keypad(true)
     @window.box(0, 0)
 
     @panel = Panel::PANEL.new(@window)

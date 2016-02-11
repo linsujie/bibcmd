@@ -2,6 +2,7 @@
 # encoding:utf-8
 
 require 'ncursesw'
+require_relative 'driverutils'
 
 class Ncurses::Menu::ITEM
   def destroyed?
@@ -22,6 +23,7 @@ class MenuWrap
 
   include Ncurses::Menu
   include Ncurses
+  include DriverUtils
 
   UNICODE_CHARS = { vline: "\u2502", hline: "\u2500", ltee: "\u251C",
                     rtee: "\u2524",  ttee: "\u252C", dtee: "\u2534",
@@ -34,7 +36,7 @@ class MenuWrap
                  wcolshift: 0, colshift: nil, rowshift: 0,
                  mark: '',
                  qkey: ['q', 27], ukey: ['k', KEY_UP], dkey: ['j', KEY_DOWN],
-                 ckey: [10], hkey: [KEY_HOME, 'gg'], ekey: [KEY_END, 'G'],
+                 ckey: [KEY_ENT], hkey: [KEY_HOME, 'gg'], ekey: [KEY_END, 'G'],
                  accepted: [], panel: nil, default_win: nil, current: 0
   }
 
@@ -50,7 +52,8 @@ class MenuWrap
       @opt[:panel] = Panel::PANEL.new(@opt[:default_win])
     end
 
-    %w(qkey ukey dkey ckey hkey ekey accepted).each { |k| format_keymap(k) }
+    %w(qkey ukey dkey ckey hkey ekey accepted).map(&:to_sym)
+      .each { |key| @opt[key] = @opt[key].map { |k| format_cmd(k) } }
 
     check_input
     prepare_frame
@@ -78,7 +81,7 @@ class MenuWrap
       break if @opt[:qkey].include?(cmd)
       break [@opt[:choices][current_index], ch] if @opt[:ckey].include?(cmd)
 
-      (@precast = ch) && next if @precast_key.include?(ch) && !@precast
+      (@precast = ch) && next if @pre_key[:normal].include?(ch) && !@precast
 
       yield(@opt[:choices][current_index], cmd) if @opt[:accepted].include?(cmd)
       driving(cmd)
@@ -110,20 +113,6 @@ class MenuWrap
 
   def current_index
     @items[0].index(@menus[0].current_item)
-  end
-
-  def read_multi_key(str)
-    @precast_key ||= [str[0].ord]
-    @precast_key << str[0].ord
-    @precast_key.uniq!
-    str.split('').map!(&:ord)
-  end
-
-  def format_keymap(key)
-    rkey =->(k) { k.size == 1 ? [nil, k.ord] : read_multi_key(k) }
-
-    key = key.to_sym
-    @opt[key] = @opt[key].map { |k| k.is_a?(Fixnum) ? [nil, k] : rkey.call(k) }
   end
 
   def driving(ch)
