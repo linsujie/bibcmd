@@ -6,13 +6,18 @@ require 'ncursesw'
 # To store the line information in words
 class LineInfo
   attr_reader :words, :index
-  attr_accessor :size, :focused
+  attr_accessor :size, :focused, :eop
 
   def initialize(string, line_index = 0)
-    @words = string.split(/[ ]/)
-    @words.push('') if @words.empty?
-    @focused = true
+    init(string, line_index)
 
+    @focused = false
+    @eop = false
+  end
+
+  def init(string, line_index = 0)
+    @words = string.split
+    @words.push('') if @words.empty?  
     set_line_index(line_index)
     fresh_size
   end
@@ -20,20 +25,22 @@ class LineInfo
   def addch(ch, index = @index)
     fresh_index(index)
 
-    @size += 1 unless ch == "\n"
-    return insert_to_word(ch) unless /\s/ =~ ch
-    create_new_word(ch)
+    @size += 1
+    return insert_to_word(ch) unless ' ' == ch
+    create_new_word
   end
 
   def delch(index = @index)
     fresh_index(index)
 
     @size -= 1
-    return if delete_eol(@index[:word])
     eow? ? join_word : delete_at_word
   end
 
+  EOP_PUSH_ERR = 'LineInfo:: an end of paragraph could not be pushed to an exist line'
   def push_to(linfo)
+    push_eop(linfo) if @eop
+
     next_inword = @index[:inword] if last_word? && @focused
     word = @words.pop
     linfo.empty? ? linfo.words[0] = word : linfo.words.unshift(word)
@@ -49,23 +56,35 @@ class LineInfo
       linfo.set_word_index
     end
 
-    return if word == "\n"
     @size -= word.size + 1
     linfo.size += word.size + 1
   end
 
+  def push_eop(linfo)
+    raise EOP_PUSH_ERR unless linfo.empty?
+    linfo.eop = true
+    @eop = false
+  end
+
   def pre_push_to
-    @words[-1] == "\n" ? @size : @size - @words[-1].size - 1
+    @size - @words[-1].size - 1
   end
 
   def pre_pull_from(line_info)
-    line_info.words[0] == "\n" ? @size : @size + line_info.words[0].size + 1
+    @size + line_info.words[0].size + 1
   end
 
+  EOP_PULL_ERR = 'LineInfo:: Nothing could be pulled after the end of paragraph'
   def pull_from(linfo)
+    raise EOP_PULL_ERR if @eop
+
     inword = linfo.index[:inword] if linfo.first_word? && linfo.focused
+
     word = linfo.words.shift
-    linfo.words.push('') if linfo.words.empty?
+    if linfo.words.empty?
+      linfo.words.push('')
+      @eop, linfo.eop = true, false if linfo.eop
+    end
     @words.push(word)
 
     if inword
@@ -78,13 +97,12 @@ class LineInfo
       linfo.set_word_index
     end
 
-    return if word == "\n"
     @size += word.size + 1
     linfo.size -= word.size + 1
   end
 
   def prevword
-    @index[:word] -= 1 unless @index[:word] == 0
+    @index[:word] -= 1 unless first_word?
     @index[:inword] == 0
     set_word_index
   end
@@ -157,7 +175,7 @@ class LineInfo
   end
 
   def to_s
-    @words.reject { |x| "\n" == x }.join(' ')
+    @words.join(' ')
   end
 
   def fresh_size
@@ -165,8 +183,7 @@ class LineInfo
   end
 
   def set_line_index(line_index)
-    word, inword, cur = @words.select { |w| w != "\n" }
-    .each_with_object([0, 0, 0]) do |w, ind|
+    word, inword, cur = @words.each_with_object([0, 0, 0]) do |w, ind|
       ind[0] += 1
       ind[2] += w.size + 1
 
@@ -187,8 +204,6 @@ class LineInfo
   end
 
   def set_word_index(index = @index)
-    last_eow(index) if @words[index[:word]] == "\n" && index[:word] > 0
-
     nw = [@words.size - 1, index[:word]].min
     ninw = [@words[nw].size, index[:inword]].min
     ninw = nw == index[:word] ? ninw : @words[nw].size
@@ -199,18 +214,12 @@ class LineInfo
 
   private
 
-  def last_eow(index)
-    index[:word] -= 1
-    index[:inword] = @words[index[:word]].size
-  end
-
   def fresh_index(index)
     if index != @index
       set_line_index(index[:line]) if is_line_index?(index)
       set_word_index(index) if is_word_index?(index)
     end
   end
-
 
   def is_word_index?(index)
     !index[:line] && index[:word] && index[:inword]
@@ -225,52 +234,27 @@ class LineInfo
   end
 
   def join_word
-    return if delete_eol(@index[:word] + 1)
-
     indrange = @index[:word]..@index[:word] + 1
     @words[indrange] = @words[indrange].join
   end
 
-  def delete_eol(word_index)
-    return unless "\n" == @words[word_index]
-    @size += 1 # Deleting the eol would not affect the size of a string
-
-    @words.slice!(word_index)
-    @index[:inword] = 0
-  end
 
   def insert_to_word(ch)
-    if @words[@index[:word]] == "\n"
-      @words.insert(@index[:word] + @index[:inword], ch)
-      @index[:word] += @index[:inword]
-      @index[:inword] = 0
-      set_word_index
-    end
-
     @words[@index[:word]].insert(@index[:inword], ch)
     @index[:inword] += 1
     @index[:line] += 1
   end
 
-  def create_new_word(ch)
+  def create_new_word
     @words.insert(@index[:word] + 1, '')
 
     preword = @words[@index[:word]][0, @index[:inword]]
-    afterword = @words[@index[:word]][@index[:inword]..-1]
+    afterword = @words[@index[:word]][@index[:inword]..-1] || ''
+    @words[@index[:word]..@index[:word] + 1] = [preword, afterword]
+
     @index[:inword] = 0
     @index[:word] += 1
     @index[:line] += 1
-
-    return unless preword && afterword
-
-    if "\n" == ch
-      words = [preword, "\n", afterword].reject { |x| x.empty? }
-      @words[@index[:word] - 1..@index[:word]] = words
-      @index[:word] += words.size - 2
-      set_word_index
-    else
-      @words[@index[:word] - 1..@index[:word]] = [preword, afterword]
-    end
   end
 end
 
@@ -306,24 +290,21 @@ class LineBuffer
   def refresh_line(need_refresh = @need_refresh)
     @need_refresh = need_refresh
     return unless @need_refresh
-    eol_ind = @info.words.index("\n") || @info.words.size
-    n_new_line_words = @info.words.size - 1 - eol_ind
-    n_new_line_words.times { push_to_next }
 
     push_to_next while(@info.size > width)
 
-    loop_pull if @info.words[-1] != "\n"
+    pull_from_next while(pullable)
 
     @need_refresh = false
     @next.refresh_line if @next && @next.need_refresh
   end
 
-  def loop_pull
-    pull_from_next while(@next && @info.pre_pull_from(@next.info) <= width)
+  def pullable
+    !@info.eop && @next && @info.pre_pull_from(@next.info) <= width
   end
 
   def push_to_next
-    insert_line if @info.words[-1] == "\n"
+    insert_line if @info.eop
     @next ||= LineBuffer.new(@width, '', self, nil)
     @info.push_to(@next.info)
 
@@ -332,23 +313,28 @@ class LineBuffer
   end
 
   def pull_from_next
-    return unless @next
+    return unless @next && !@info.eop
     @info.pull_from(@next.info)
     @next.need_refresh = true
     @next.fresh = :whole
-    delete_line if @info.words[-1] == "\n" || @next.info.empty?
+    delete_line if @next.info.empty?
   end
 
   def size
+    @previous.size if @previous
     @next ? @next.size + 1 : 1
   end
 
   def to_s
-    @next ? line_str + "\n" + @next.to_s : line_str
+    @next ? output_str + (@info.eop ? "\n" : ' ') + @next.to_s : output_str
   end
 
   def strings
     @next ? @next.strings.unshift(@info.to_s) : [@info.to_s]
+  end
+
+  def output_str
+    @info.words.reject { |w| w.empty? }.join(' ')
   end
 
   def line_str(x = 0)
@@ -356,7 +342,7 @@ class LineBuffer
   end
 
   def new_pgraph?
-    !@previous || "\n" == @previous.info.words[-1]
+    !@previous || @previous.info.eop
   end
 
   def x
@@ -368,11 +354,28 @@ class LineBuffer
 
     @next.previous = new if @next
     @next = new
+    @next.each_from_cur { |l| l.fresh = :whole }
   end
 
   def delete_line
     @next.next.previous = self if @next.next
     @next = @next.next
+    each_from_cur { |l| l.fresh = :whole }
+  end
+
+  def join(lb)
+    first, second = tail, lb.head
+    first.info.eop = true
+    first.next, second.previous = second, first
+  end
+
+  def each_from_cur
+    line = self
+    loop do
+      break unless line
+      yield(line)
+      line = line.next
+    end
   end
 
   private
@@ -391,33 +394,45 @@ class MentryData
   def initialize(opt)
     @opt = opt
     DFT_OPTION.each_key { |k| @opt[k] = DFT_OPTION[k] unless @opt.key?(k) }
-    @current = LineBuffer.new(@opt[:width], @opt[:string])
+    paragraphs = @opt[:string].split("\n")
+    paragraphs.push('') if paragraphs.empty?
+    paragraphs.each do |pgh|
+      newlb = LineBuffer.new(@opt[:width], pgh)
+      @current ? @current.join(newlb) : @current = newlb
+    end
+
     @current.info.focused = true
     move(0, 0)
   end
 
   def addch(ch, x = nil)
-    file = File.new('templog', 'a')
     @current.info.set_line_index(x) if x
 
-    file.puts "before #{@current.info.words} #{@current.info.index}"
-    @current.info.addch(ch)
-    file.puts "addch #{@current.info.words} #{@current.info.index}"
+    ch == "\n" ? add_new_pgh : @current.info.addch(ch)
     @current.fresh ||= :cursor
     @current.need_refresh = true
 
-    file.close
     update_current
-    file = File.new('templog', 'a')
-    file.puts "after #{@current.info.words} #{@current.info.index}"
-    file.puts ''
-    file.close
     :whole
+  end
+
+  def add_new_pgh
+    lind = @current.info.index[:line]
+    pline, nline = @current.info.to_s.insert(lind, "\n").split("\n")
+
+    @current.info.eop = true
+
+    if nline
+      @current.info.init(pline, lind)
+      @current.insert_line
+      @current.next.info.init(nline)
+    end
+
+    nextline(0)
   end
 
   def delprev(x = nil)
     @current.info.set_line_index(x) if x
-    prevchar if @current.info.bol?
     prevchar
     delch
   end
@@ -425,8 +440,15 @@ class MentryData
   def delch(x = nil)
     @current.info.set_line_index(x) if x
 
-    @current.pull_from_next if @current.info.eol?
-    @current.info.delch
+    if @current.info.eop && @current.info.eol?
+      @current.info.eop = false
+      @current.next.fresh = :whole if @current.next
+      @current.next.need_refresh = true if @current.next
+    else
+      @current.pull_from_next if @current.info.eol?
+      @current.info.delch
+    end
+
     @current.fresh ||= :cursor
     @current.need_refresh = true
 
@@ -523,11 +545,11 @@ class MentryData
     :cursor
   end
 
-  def nextline
+  def nextline(lind = nil)
     return unless @current.next
     @current.info.focused = false
     @current.next.info.focused = true
-    @current.next.info.set_line_index(@current.info.index[:line])
+    @current.next.info.set_line_index(lind || @current.info.index[:line])
     @current = @current.next
     :cursor
   end
@@ -557,12 +579,7 @@ class MentryData
   end
 
   def each_line
-    line = head
-    loop do
-      break unless line
-      yield(line)
-      line = line.next
-    end
+    head.each_from_cur { |l| yield(l) }
   end
 
   def x
@@ -650,7 +667,6 @@ class Mentry
     lind = line.fresh == :whole ? 0 : (line.info.index[:line] - 1)
     lind = [0, lind].max
 
-    raise "#{line.info.words} #{line.info.index} #{lind}" unless line.line_str(lind)
     @window.mvprintw(i, lind, line.line_str(lind).ljust(@opt[:width] - lind))
 
     line.fresh = false
@@ -664,6 +680,10 @@ class Mentry
 
   def getch
     (@frame || @window).getch
+  end
+
+  def to_s
+    data.head.to_s
   end
 
   private
