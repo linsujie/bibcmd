@@ -145,7 +145,7 @@ class MenuWrap
   end
 
   def free_main_window(window)
-    @opt[:panel].replace_panel(@opt[:default_win])
+    @opt[:panel].replace_panel(@opt[:default_win]) if @opt[:panel]
 
     window.delwin
   end

@@ -3,6 +3,8 @@
 
 require 'ncursesw'
 require_relative 'driverutils'
+require_relative 'menuwrap'
+require_relative 'mentry'
 
 # The blackboard for writing note
 class NoteBoard
@@ -13,7 +15,6 @@ class NoteBoard
 
   HEAD_TERM = %w(title author identifier).map(&:to_sym)
   TIPS = ' q: quit   [hjkl], x, dw, dd, $...: same as vim'
-  FIELD_EXT_LINE = 0
   STAT_LABEL = { normal: 'NORMAL', insert: 'INSERT' }
   DFT_OPTION = { infocolor: 2,
                  splitor: "\u2500".encode('utf-8'), splitorcolor: 6,
@@ -25,10 +26,10 @@ class NoteBoard
   def initialize(opt)
     @opt = opt
     DFT_OPTION.each_key { |k| @opt[k] = DFT_OPTION[k] unless @opt.key?(k) }
-    @padkey_driver_map = { KEY_LEFT => REQ_LEFT_CHAR,
-                           KEY_RIGHT => REQ_RIGHT_CHAR,
-                           KEY_UP => REQ_UP_CHAR,
-                           KEY_DOWN => REQ_DOWN_CHAR,
+    @padkey_driver_map = { KEY_LEFT => REQ_PREV_CHAR,
+                           KEY_RIGHT => REQ_NEXT_CHAR,
+                           KEY_UP => REQ_PREV_LINE,
+                           KEY_DOWN => REQ_NEXT_LINE,
                            KEY_HOME => REQ_BEG_FIELD,
                            KEY_END => REQ_END_FIELD }
     @nor_driver_map = gen_nor_driver_map
@@ -43,34 +44,54 @@ class NoteBoard
     Ncurses.curs_set(1)
 
     loop do
-      ch = @window.getch
+      ch = @mentry.getch
       cmd = [@precast, ch]
 
       (@precast = ch) && next if @pre_key[@stat].include?(ch) && !@precast
 
       act_result = :insert == @stat ? insert_deal(cmd) : normal_deal(cmd)
-      @field.set_field_buffer(0, @field.buffer(0).split(' ').join(' '))
       break if act_result == :quit
 
       @precast = nil
     end
-    get_buffer
+    Ncurses.curs_set(0)
+    @mentry.to_s
   end
 
   private
 
-  def get_buffer
-    @form.driver(REQ_VALIDATION)
-    @field
-  end
-
   def insert_deal(cmd)
-    set_stat(:normal) if [nil, 27] == cmd
+    return set_stat(:normal) if [nil, 27] == cmd
 
     driver_code = @ins_driver_map[cmd]
-    return @form.driver(driver_code) if driver_code
+    return @mentry.driver(driver_code) if driver_code
 
-    @form.driver(cmd[1])
+    return unless cmd[1] < 256 && cmd[1] >= 0
+    return complete if cmd[1].chr == "\t"
+    @mentry.driver(REQ_INS_CHAR, cmd[1].chr)
+  end
+
+  def complete
+    linfo = @mentry.data.current.info
+    preword = linfo.words[linfo.index[:word]][0, linfo.index[:inword]]
+    menuwords = @mentry.data.dictionary.select { |w| w.start_with?(preword) }
+    menuwords -= [preword]
+    return if menuwords.empty?
+    menu = MenuWrap.new(width: menuwords.map { |w| w.size }.max,
+                        height: menuwords.size,
+                        wcolshift: @mentry.data.x,
+                        rowshift: @mentry.data.y + @headline + 2,
+                        choices: menuwords, default_win: @mwin)
+    Ncurses.curs_set(0)
+    str, cmd = menu.get
+    Ncurses.curs_set(1)
+
+    menu.opt[:panel].hide
+    menu.del
+
+    return unless str
+    preword.size.times { @mentry.driver(REQ_DEL_PREV) }
+    (str + ' ').each_char { |ch| @mentry.driver(REQ_INS_CHAR, ch) }
   end
 
   def normal_deal(cmd)
@@ -80,7 +101,7 @@ class NoteBoard
     stdscr.mvprintw(0, 100, cmd.to_s)
     stdscr.refresh
     driver_code = @nor_driver_map[cmd]
-    @form.driver(driver_code) if driver_code
+    @mentry.driver(driver_code) if driver_code
   end
 
   def gen_ins_driver_map
@@ -92,10 +113,10 @@ class NoteBoard
   end
 
   def gen_nor_driver_map
-    { 'h' => REQ_LEFT_CHAR,
-      'l' => REQ_RIGHT_CHAR,
-      'k' => REQ_UP_CHAR,
-      'j' => REQ_DOWN_CHAR,
+    { 'h' => REQ_PREV_CHAR,
+      'l' => REQ_NEXT_CHAR,
+      'k' => REQ_PREV_LINE,
+      'j' => REQ_NEXT_LINE,
       'w' => REQ_NEXT_WORD,
       'b' => REQ_PREV_WORD,
       '00' => REQ_BEG_LINE,
@@ -105,7 +126,6 @@ class NoteBoard
       'dd' => REQ_DEL_LINE,
       'dw' => REQ_DEL_WORD,
       'd$' => REQ_CLR_EOL,
-      'dG' => REQ_CLR_EOF,
       'x' => REQ_DEL_CHAR,
       KEY_ENT => REQ_NEXT_LINE,
       KEY_BAC1 => REQ_PREV_CHAR,
@@ -115,32 +135,21 @@ class NoteBoard
 
   def prepares
     write_head
-    prepare_form
+    prepare_mentry
     prepare_stat
     prepare_tips
     set_stat(:insert)
   end
 
-  def prepare_form
-    @field = FIELD.new(@opt[:height] - @headline - 3, @opt[:width] - 2,
-                       0, 0, FIELD_EXT_LINE, 0)
-    @field.opts_off(O_BLANK)
-    @field.opts_off(O_STATIC)
-    #@field.opts_off
-    @field.fore = Ncurses.color_pair(@opt[:contentcolor])
-    @field.back = Ncurses.color_pair(@opt[:contentcolor])
-    @field.set_field_buffer(0, @info[:item]) if @info[:item]
-
-    @formwin = @window.derwin(@opt[:height] - @headline - 3,
-                              @opt[:width] - 2, @headline + 1, 1)
-    @formwin.bkgd(Ncurses.color_pair(@opt[:contentcolor]))
-    @formwin.keypad(true)
-
-    @form = FORM.new([@field])
-    @form.set_form_win(@window)
-    @form.set_form_sub(@formwin)
-
-    @form.post_form
+  def prepare_mentry
+    @mwin = @window.derwin(@opt[:height] - @headline - 3,
+                           @opt[:width] - 2, @headline + 1, 1)
+    @mwin.bkgd(Ncurses.color_pair(@opt[:contentcolor]))
+    @mwin.attron(Ncurses.color_pair(@opt[:contentcolor]))
+    @mwin.keypad(true)
+    @mentry = Mentry.new(string: @info[:item], window: @mwin)
+    @mentry.driver(REQ_END_FIELD)
+    @mpanel = Panel::PANEL.new(@mwin)
   end
 
   def set_stat(stat)
@@ -149,7 +158,6 @@ class NoteBoard
     @spanel.show
     @tpanel.show if :normal == stat
     Panel.update_panels
-    @form.driver(REQ_VALIDATION)
   end
 
   def prepare_stat
