@@ -521,7 +521,7 @@ class Bibus
 
   def opbib(ident, associate = false)
     reader = associate ? @opts[:assreader] : @opts[:reader]
-    system("(#{reader} '#{filepath(ident)}' &)")
+    system(%((#{reader} "#{filepath(ident)}" &)))
     writelogfile(File.expand_path('~/.opbib_history'), ident)
   end
 
