@@ -137,7 +137,7 @@ module BaseBibUtils
   end
 
   def filepath(ident, postfix = 'pdf')
-    prefix = "#{@opts[:refdir]}/#{ident}"
+    prefix = "#{@opts[:refdir]}/#{to_file_name(ident)}"
     Dir.glob("#{prefix}.*")[0] || "#{prefix}.#{postfix}"
   end
 
