@@ -43,6 +43,17 @@ class FoldList
     @tree.to_a { |v, g| [v[:id], v[:parent], v[:keyname]] }
   end
 
+  def draw(outputname)
+    dotfile = File.new(outputname + ".dot", 'w')
+    hash = @tree.to_a { |v, g| [v[:id], [v[:parent], v[:keyname]]] }.to_h
+    arr = []
+    hash.each { |_, v| arr << "#{v[1]} -> #{hash[v[0]][1]};" if hash[v[0]] }
+    dotfile.puts "#!/bin/dot\ndigraph Depend {\n" + arr.join("\n") + "\n}"
+    dotfile.close
+
+    `dot -Teps #{outputname}.dot -o #{outputname}.eps`
+  end
+
   def size
     to_a[0].map(&:size).max + 3
   end

@@ -239,8 +239,8 @@ module BibusKey
     genbiblist
   end
 
-  def sons(keyid)
-    @bibkeylist.each.select { |_, v| v[0] == keyid }.map! { |x| x[1][1] }
+  def offspring(keyid)
+    @biblist.tree.find(:id, keyid.to_i).to_a { |v, g| v[:id] }
   end
 
   def adopt(son, parent)

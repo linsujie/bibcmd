@@ -31,6 +31,14 @@ CmdBibBase = Struct.new(:bib) do
     .map { |it, _| [it[0], bib.keynames(it[1]), it[2], it[1]] }.transpose
   end
 
+  def keyidents_full(keyid)
+    ref_ids = bib.offspring(keyid).map do |id|
+      bib.db.select(:bibreflink, :ref_id, :key_id, id)
+    end
+
+    obtainlist(ref_ids.flatten.uniq)
+  end
+
   def keyidents(keyid)
     obtainlist(bib.db.select(:bibreflink, :ref_id, :key_id, keyid).flatten)
   end
@@ -130,6 +138,7 @@ module CmdBibControl
       state
     end
 
+    return @list.set(0, 0, keyidents_full(key)) if @menu.char == 'L'
     @list.set(0, 0, keyidents(key)) if @menu.char != 'q'
   end
 
@@ -221,12 +230,19 @@ module CmdBibControl
     @list.current(-1) != '' && bib.opbib(@list.current(0), associate)
   end
 
+  def draw_key
+    ask_outfile unless @outfile
+    return unless @outfile
+
+    bib.biblist.draw(@outfile)
+  end
+
   def print_item(kind)
     ask_outfile unless @outfile
     return unless @outfile
     bibtext, message = bibinfo(kind)
 
-    bib.printbibs(bibtext, @outfile)
+    bib.printbibs(bibtext, "#{@outfile}.bib")
     showmessage("#{message} are printed")
   end
 
@@ -277,6 +293,7 @@ module CmdBibControl
     # methods that change nothing
     o: [:open, false],
     O: [:open, true],
+    D: [:draw_key],
     p: [:print_item, :current],
     P: [:print_item, :all],
   }
@@ -339,7 +356,7 @@ class CmdBib < CmdBibBase
     @menu = FoldMenu.new(bib.biblist,
                          xshift: [(wth - bib.biblist.size) / 2],
                          yshift: 2, fixlen: nil, length: hght - 6)
-    @menu.setctrl(['q', 10], DOWNKEYS, UPKEYS)
+    @menu.setctrl(['q', 10, 'L'], DOWNKEYS, UPKEYS)
     @menu.setcol([COLORS[:menu]])
   end
 
