@@ -67,7 +67,7 @@ CmdBibBase = Struct.new(:bib) do
     FileUtils.mv(bibname, @backup_bib) unless bibname == @backup_bib
   end
 
-  def listdiag(comps = false, bgstrs = '')
+  def listdiag(comps = false, bgstrs = '', refresh = false)
     @diag.reset
     @diag.complist = comps
 
@@ -78,6 +78,8 @@ CmdBibBase = Struct.new(:bib) do
 
     yed = ->(str) { str == '' ? str : yield(str) }
     block_given? ? yed.call(@diag.file.string) : @diag.file.string
+
+    refreshpanel(refresh)
   end
 
   KEY_STATE_MAP = { :normal => { :l => :link },
@@ -159,7 +161,7 @@ module CmdBibControl
   end
 
   def searchdiag
-    listdiag { |word| @list.set(0, 0, search(word)) }
+    listdiag(false, '', true) { |word| @list.set(0, 0, search(word)) }
   end
 
   def add
