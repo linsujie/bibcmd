@@ -26,6 +26,7 @@ CmdBibBase = Struct.new(:bib) do
   end
 
   def obtainlist(list)
+    return [[], [], [], []] unless list
     list.map { |x| bib.db.select(:bibref, %w(identifier id title), :id, x) }
     .select { |x| x[0] }
     .map { |it, _| [it[0], bib.keynames(it[1]), it[2], it[1]] }.transpose
