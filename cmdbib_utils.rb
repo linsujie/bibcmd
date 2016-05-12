@@ -77,9 +77,10 @@ CmdBibBase = Struct.new(:bib) do
     end
 
     yed = ->(str) { str == '' ? str : yield(str) }
-    block_given? ? yed.call(@diag.file.string) : @diag.file.string
+    result = block_given? ? yed.call(@diag.file.string) : @diag.file.string
 
     refreshpanel(refresh)
+    result
   end
 
   KEY_STATE_MAP = { :normal => { :l => :link },
