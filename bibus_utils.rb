@@ -99,7 +99,7 @@ module BaseBibUtils
   end
 
   def to_file_name(name)
-    name.gsub(/( |:)/, '_')
+    name.gsub(/( |:)/, '_').gsub("'", '')
   end
 
   def genbiblist
