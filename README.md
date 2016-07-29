@@ -8,13 +8,15 @@
 # Configure
 Please read the bibcmd and do as required.
 
-   File.expand_path('dir/.bibcmdrc') refer to the configure file, please read bibcmdrc.example for an example
-   In configure file
-	USER_NAME : the name of USER
-	DATA_FILE : the database
-	REF_DIR   : dirctory to story files ( pdfs, links)
-	READER    : primarily pdf reader
-	ASSREADER : secondary pdf reader
+File.expand_path('dir/.bibcmdrc') refer to the configure file, please read bibcmdrc.example for an example
+
+In configure file
+
+    USER_NAME : the name of USER
+    DATA_FILE : the database
+    REF_DIR   : dirctory to story files ( pdfs, links)
+    READER    : primarily pdf reader
+    ASSREADER : secondary pdf reader
 
 # Command
 ## main screen
