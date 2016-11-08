@@ -231,7 +231,8 @@ module CmdBibControl
   end
 
   def open(associate)
-    @list.current(-1) != '' && bib.opbib(@list.current(0), associate)
+    @list.current(-1) != '' &&
+      showmessage(bib.opbib(@list.current(0), associate))
   end
 
   def draw_key

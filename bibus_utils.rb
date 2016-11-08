@@ -520,9 +520,11 @@ class Bibus
   end
 
   def opbib(ident, associate = false)
+    return "#{ident} file is empty, do not open" if File.size(filepath(ident)).zero?
     reader = associate ? @opts[:assreader] : @opts[:reader]
     system(%((#{reader} "#{filepath(ident)}" &)))
     writelogfile(File.expand_path('~/.opbib_history'), ident)
+    "opening #{ident}"
   end
 
   def printbibs(idlist, fname, mode = 'a')
