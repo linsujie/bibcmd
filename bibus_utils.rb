@@ -460,12 +460,12 @@ class Bibus
     genlabels unless File.exist?(@opts[:labelsdir])
   end
 
+  SEARCH_CHECK_LIST = %w(title author abstract bibnote eprint volume pages)
+  SEARCH_OUT_LIST = %w(identifier id author journal volume pages title)
   def search(words)
     words.reduce(nil) do |a, e|
-      list = @db.selects(:bibref,
-                         %w(identifier id author journal volume pages title),
-                         %w(title author abstract note eprint volume pages),
-                         [e, e, e, e, e, e, e])
+      list = @db.selects(:bibref, SEARCH_OUT_LIST, SEARCH_CHECK_LIST,
+                         [e] * SEARCH_CHECK_LIST.size)
       a ? a & list : list
     end
   end
