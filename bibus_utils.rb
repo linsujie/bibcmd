@@ -21,15 +21,15 @@ class DbUtils < SQLite3::Database
   end
 
   def selects(table, keys, condition, con_val)
-    root_select(table, keys, condition, con_val, :abr)
+    root_select(table, keys, condition, con_val, true, 'or')
   end
 
   def nselects(table, keys, condition, con_val)
-    root_select(table, keys, condition, con_val, :aba)
+    root_select(table, keys, condition, con_val, true, 'and')
   end
 
   def select(table, keys, condition = [], con_val = [])
-    root_select(table, keys, condition, con_val, :exa)
+    root_select(table, keys, condition, con_val, false, 'and')
   end
 
   def update(table, update_pairs, con_pairs)
@@ -62,19 +62,16 @@ class DbUtils < SQLite3::Database
 
   private
 
-  def cdtjoin(condition, ambgs = false, conect = 'and')
-    qm = ambgs ? ' like ?' : '=?'
+  def cdtjoin(condition, qm = '=?', conect = 'and')
     return '' if [*condition].join(' ') == ''
-    'where ' + [*condition].join("#{qm} #{conect} ") + qm
+    'where ' + [*condition].map { |c| "#{c}#{qm}" }.join(" #{conect} ")
   end
 
-  def root_select(table, keys, condition, con_val, cls)
-    ambgs = cls == :aba || cls == :abr
-    con_val = [*con_val].map! { |x| "%#{x}%" } if ambgs
-    conect = cls == :abr || cls == :exr ? 'or' : 'and'
+  def root_select(table, keys, condition, con_val, ambiguous, and_or)
+    con_val = [*con_val].map! { |x| "%#{x}%" } if ambiguous
 
     keys = [*keys].join(', ')
-    condition = cdtjoin(condition, ambgs, conect)
+    condition = cdtjoin(condition, ambiguous ? ' like ?' : '=?', and_or)
 
     sentence = "select #{keys} from #{table} #{condition}"
 
