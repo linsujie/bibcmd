@@ -49,7 +49,7 @@ class DbUtils < SQLite3::Database
 
   def delete(table, condition, con_val, ambgs = false)
     return if condition.empty?
-    condition = cdtjoin(condition, ambgs)
+    condition = cdtjoin(condition, ambgs ? ' like ?' : '=?')
     sentence = "delete from #{table} #{condition}"
     execute(sentence, con_val)
   end
