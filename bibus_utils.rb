@@ -11,7 +11,7 @@ class DbUtils < SQLite3::Database
   public
 
   BTYPE = %w(article book booklet conference inbook incollection
-             inproceedings journal manual)
+             inproceedings journal manual electronic misc)
 
   def insert(table, keys, val)
     key = "(#{[*keys].join(', ')})"
@@ -564,7 +564,7 @@ class Bibus
   end
 
   def jointerm(term, mlen)
-    term[0].to_s + ' ' * (mlen - term[0].size) + ' = "' + term[1] + '",'
+    term[0].to_s + ' ' * (mlen - term[0].size) + ' = {' + term[1] + '},'
   end
 
   def writelogfile(filename, item)
