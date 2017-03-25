@@ -1,3 +1,9 @@
+# Concept
+The bibcmd is a command-line and simplified version of the bibus.
+It's developed to manage the bibliographies in pure command-line and keyboard.
+The basic entry manipulated in the bibcmd is a 'term', which include the information of bibtex, the pdf files and perhaps your note on it.
+The term is classified by the 'key', it could be tagged to multiple keys.
+
 # Dependency
 *   Both the binary library **ncurses** and **sqlite3** are needed by this script. Install them from the repositories (with apt-get, yum or dnf ...)
 *   This script is writen in ruby, thus two gem are also necessary as the interfaces between the two library and ruby. Please do:
@@ -30,23 +36,23 @@ In configure file
     s  open the search diaglog box
 
     o  open the term with primarily pdf reader, e.g. evince
-	O  open the term with secondary pdf READER
+    O  open the term with secondary pdf READER
     D  draw the logic pictrue of the list
-	p  print the term
-	P  print all term
+    p  print the term
+    P  print all term
 
     q  quit
 
 ### command that would change the data
 
-    a  add a new term
+    a  add a new term (The new term would be tagged with the key 'newtmp' by default)
     u  update the current term with new pdf file or bibtex File
     t  tag or untag the current term to a key
-	d  delete the term
-	n  note the term
+    d  delete the term
+    n  note the term
 ***
 
-## list
+## list (key)
 
     a  add a key as the son of current key
     A  add a key as the son of the origin key
@@ -66,8 +72,8 @@ In configure file
 ## adding note
 
     a  add a note
-	d  delete the note
+    d  delete the note
     m  modify the note
     p  pickup a note (to adjust its position)
-	s  save notes
+    s  save notes
     q  quit the note mode
