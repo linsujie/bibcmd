@@ -517,6 +517,7 @@ class Bibus
   end
 
   def opbib(ident, associate = false)
+    return "#{ident} file unexist, do not open" unless File.exist?(filepath(ident))
     return "#{ident} file is empty, do not open" if File.size(filepath(ident)).zero?
     reader = associate ? @opts[:assreader] : @opts[:reader]
     system(%((#{reader} "#{filepath(ident)}" &)))
