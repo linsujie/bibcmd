@@ -4,6 +4,7 @@
 require 'sqlite3'
 require 'fileutils'
 require 'pathname'
+require 'http'
 require_relative 'foldlist.rb'
 
 # This class is some utils to database of bibus
@@ -271,9 +272,11 @@ module BibReader
 
     public
 
-    def initialize(tmpfile)
+    def initialize(input)
       @bibitems = {}
-      content = getcontent(File.new(File.expand_path(tmpfile)))
+
+      str = File.exist?(input) ? File.new(File.expand_path(input)).read : input
+      content = getcontent(str)
       btype, ident = content.shift.sub(/^@(\w+){(.*),\n$/, '\1 \2').split(' ')
       dowarn(readitems(content))
       bibitem = @bibitems.map { |key, val| [translate(key), val] }
@@ -288,9 +291,9 @@ module BibReader
 
     TRANSMAP = { adsurl: :url }
 
-    def getcontent(file)
+    def getcontent(str)
       @swh = false
-      file.lines.reduce([]) { |a, e| bibcont?(e) ? a << e : a }
+      str.each_line.reduce([]) { |a, e| bibcont?(e) ? a << e : a }
     end
 
     def bibcont?(line)
@@ -353,7 +356,16 @@ module BibReader
     end
   end
 
+  def is_url?(str)
+    str =~ /\s*http/
+  end
+
+  def get_file(url)
+    HTTP.get(url).to_s
+  end
+
   def readbib(tmpfile)
+    tmpfile.replace(get_file(tmpfile)) if is_url?(tmpfile)
     system("dos2unix -q #{tmpfile}")
     reader = PrivBibReader.new(tmpfile)
     @bibitems = reader.bibitems
@@ -469,6 +481,36 @@ class Bibus
 
   def addbib(filename, tmpfile = '~/Documents/tmp.bib')
     readbib(tmpfile)
+    id, = @db.select(:bibref, :id, :identifier, @bibitems[:identifier])[0]
+    id ? moditem(id) : additem(gen_id)
+
+    addfile(filename, @bibitems[:identifier])
+    id ? :mod : :add
+  end
+
+  def read_url(website)
+    # Only support inspire at first
+    %r{<a href="(?<biburl>http[\w:/.]+)">BibTeX</a>} =~ website.to_s
+    %r{<a href="(?<pdfurl>http[\w:/.]+)">PDF</a>} =~ website.to_s
+
+    pdfurl.sub!('http:', 'https:')
+    pdfname = File.basename(pdfurl)
+
+    pdf = HTTP.get(pdfurl)
+    raise "pdf file not found in #{pdfurl}" unless pdf.status.ok?
+
+
+    file = File.new(pdfname, 'w')
+    file.puts pdf.to_s
+    file.close
+
+    [biburl, pdfname]
+  end
+
+  def addurlbib(website)
+    biburl, filename = read_url(website)
+
+    readbib(biburl)
     id, = @db.select(:bibref, :id, :identifier, @bibitems[:identifier])[0]
     id ? moditem(id) : additem(gen_id)
 

@@ -21,6 +21,8 @@ module Message
               fileask: 'Input the filename (the file would not be updated if empty)',
               bibadr: 'Input the bibfile of the item',
               bibask: 'Input the bibfile (the item would not be updated if empty)',
+              urlasku: 'Input the inspire (adsabs) url of the item (would not be updated if empty)',
+              urlask: 'Input the inspire (adsabs) url of the item',
               newkey: 'Input the name of the new key',
               pkey: 'Choose the parent key'
   }

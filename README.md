@@ -11,6 +11,10 @@ The term is classified by the 'key', it could be tagged to multiple keys.
         gem install curses
         gem install sqlite3
 
+*   In addition, the gem **http** is also adopted to get the access to websites, you need to:
+
+        gem install http
+
 # Configure
 Please read the bibcmd and do as required.
 
@@ -46,6 +50,7 @@ In configure file
 ### command that would change the data
 
     a  add a new term (The new term would be tagged with the key 'newtmp' by default)
+    A  add a new term with the inspire hep url (adsabs would be supported latter)
     u  update the current term with new pdf file or bibtex File
     t  tag or untag the current term to a key
     d  delete the term

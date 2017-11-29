@@ -1,6 +1,8 @@
 #!/usr/bin/env ruby
 # encoding: utf-8
 
+require 'http'
+
 require_relative 'note.rb'
 require_relative 'content.rb'
 
@@ -64,7 +66,7 @@ CmdBibBase = Struct.new(:bib) do
 
   def back_bibfile(bibname)
     bibname = File.expand_path(bibname)
-    FileUtils.mv(bibname, @backup_bib) unless bibname == @backup_bib
+    FileUtils.mv(bibname, @backup_bib) if bibname != @backup_bib && File.exist?(bibname)
   end
 
   def listdiag(comps = false, bgstrs = '', refresh = false)
@@ -176,6 +178,17 @@ module CmdBibControl
     addresult = bib.addbib(filename, bibname)
     showmessage("The item aready exist, modify it") if addresult == :mod
     back_bibfile(bibname)
+  end
+
+  def urladd
+    return unless asks(:add)
+
+    url = diag_with_msg(false, :urlask)
+    website = HTTP.get(url)
+    showmessage("The url is unavailable, do nothing") unless website.status.ok?
+
+    addresult = bib.addurlbib(website)
+    showmessage("The item aready exist, modify it") if addresult == :mod
   end
 
   def delete
@@ -291,6 +304,7 @@ module CmdBibControl
     s: [:searchdiag],
     # methods that change the sqlite data
     a: [:add],
+    A: [:urladd],
     d: [:delete],
     n: [:noting],
     t: [:tag_current],
