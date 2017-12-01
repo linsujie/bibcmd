@@ -243,6 +243,30 @@ module CmdBibControl
     bib.addfile(filename, ident) if filename != ''
   end
 
+  def urlupdate
+    return unless asks(:update)
+
+    eprint, doi = bib.db.select(:bibref, %w(eprint Doi), :id, @list.current(-1))[0]
+    if (eprint.empty? && doi.empty?)
+      showmessage("No eprint or doi found, do nothing")
+      return
+    end
+
+    info = eprint.empty? ? "doi #{doi}" : "eprint #{eprint}"
+    showmessage("Searching for #{info}")
+    website = HTTP.get("https://inspirehep.net/search?p=find+#{info.sub(' ', '+')}")
+
+    if !website.status.ok?
+      showmessage("Could not find the #{info} in inspire hep, do nothing")
+      return
+    end
+    %r{<a href="(?<biburl>http[\w:/.]+)">BibTeX</a>} =~ website.to_s
+
+    showmessage("Updating the bibtex for #{info}")
+    update_item(biburl)
+    showmessage("Item updated")
+  end
+
   def open(associate)
     @list.current(-1) != '' &&
       showmessage(bib.opbib(@list.current(0), associate))
@@ -309,6 +333,7 @@ module CmdBibControl
     n: [:noting],
     t: [:tag_current],
     u: [:update],
+    U: [:urlupdate],
     # methods that change nothing
     o: [:open, false],
     O: [:open, true],

@@ -52,6 +52,7 @@ In configure file
     a  add a new term (The new term would be tagged with the key 'newtmp' by default)
     A  add a new term with the inspire hep url (adsabs would be supported latter)
     u  update the current term with new pdf file or bibtex File
+    U  update the current term with new bibtex found in inspire
     t  tag or untag the current term to a key
     d  delete the term
     n  note the term
