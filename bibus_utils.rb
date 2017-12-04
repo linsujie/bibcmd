@@ -490,8 +490,8 @@ class Bibus
 
   def read_url(website)
     # Only support inspire at first
-    %r{<a href="(?<biburl>http[\w:/.]+)">BibTeX</a>} =~ website.to_s
-    %r{<a href="(?<pdfurl>http[\w:/.]+)">PDF</a>} =~ website.to_s
+    %r{<a href="(?<biburl>http[\w:/.-]+)">BibTeX</a>} =~ website.to_s
+    %r{<a href="(?<pdfurl>http[\w:/.-]+)">PDF</a>} =~ website.to_s
 
     pdfurl.sub!('http:', 'https:')
     pdfname = File.basename(pdfurl)
