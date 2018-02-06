@@ -515,7 +515,7 @@ class Bibus
     id ? moditem(id) : additem(gen_id)
 
     addfile(filename, @bibitems[:identifier])
-    id ? :mod : :add
+    [id ? :mod : :add, @bibitems[:identifier]]
   end
 
   def additem(id)

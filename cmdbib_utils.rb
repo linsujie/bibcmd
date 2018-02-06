@@ -187,8 +187,8 @@ module CmdBibControl
     website = HTTP.get(url)
     showmessage("The url is unavailable, do nothing") unless website.status.ok?
 
-    addresult = bib.addurlbib(website)
-    showmessage("The item aready exist, modify it") if addresult == :mod
+    addresult, ident = bib.addurlbib(website)
+    addresult == :mod ? showmessage("The item aready exist, modify it") : showmessage("#{ident} added")
   end
 
   def delete
